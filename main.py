@@ -3,232 +3,213 @@ from dotenv import load_dotenv
 import os
 from terminaltables import AsciiTable
 
+
 def out_table_terminal(title, cur__rating):
-  main_title = "{0}\nЯзык программирования".format(title)
-  table_data  = [ [main_title, "Вакансий найдено","Вакансий обработано" ,"Средняя зарплата" ] ]
+    main_title = "{0}\nЯзык программирования".format(title)
+    table_data = [[ main_title,
+                    "Вакансий найдено",
+                    "Вакансий обработано",
+                    "Средняя зарплата"]]
 
-  for key, curent_vacancie in cur__rating.items():
-    curent_row_table = [ key, curent_vacancie["vacancies_found"], curent_vacancie["vacancies_processed"], curent_vacancie["average_salary"]]
-    table_data.append(curent_row_table)
+    for key, current_vacancie in cur__rating.items():
+        current_row_table = [key, current_vacancie["vacancies_found"], current_vacancie["vacancies_processed"],
+                            current_vacancie["average_salary"]]
+        table_data.append(current_row_table)
 
-  table = AsciiTable(table_data)
-  print(table.table)
+    table = AsciiTable(table_data)
+    print(table.table)
 
+def predict_rub_salary(salary_min,salary_max):
+    find_min = False
+    find_max = False
 
-def predict_rub_salary_sj(curent_vacancie):
-  valuta = curent_vacancie["currency"]
-  if valuta != "rub":
-    return None
+    if salary_min != None:
+        if salary_min > 0:
+            find_min = True
 
-  find_min = False
-  find_max = False
+    if salary_max != None:
+        if salary_max > 0:
+            find_max = True
 
-  salary_min = curent_vacancie["payment_from"]
-  if salary_min != None:
-      if salary_min > 0:    
-        find_min = True
+    if (find_min == False) and (find_max == False):
+        return None
+    if (find_min == True) and (find_max == True):
+        return int((salary_min + salary_max) / 2)
 
-  salary_max = curent_vacancie["payment_to"]
-  if salary_max != None:
-      if salary_max > 0:    
-        find_max = True
+    if (find_max == True):
+        return int(salary_max * 0.8)
 
-  if (find_min == False) and (find_max == False):
-    return None
-  if (find_min == True) and (find_max == True):
-    return int( (salary_min + salary_max )/2 )
-
-  if (find_max == True):
-    return int(salary_max * 0.8)
-
-  return int( salary_min * 1.2 )
-
-def predict_rub_salary(curent_vacancie):
-  salary_vacancie = curent_vacancie["salary"]
-  if salary_vacancie == None:
-    return None
-  valuta = salary_vacancie["currency"]
-  if valuta != "RUR":
-    return None
-  find_min = False
-  find_max = False
-
-  salary_min = salary_vacancie["from"]
-  if salary_min != None:
-      if salary_min > 0:    
-        find_min = True
-
-  salary_max = salary_vacancie["to"]
-  if salary_max != None:
-      if salary_max > 0:    
-        find_max = True
-  
-  if (find_min == False) and (find_max == False):
-    return None
-  if (find_min == True) and (find_max == True):
-    return int( (salary_min + salary_max )/2 )
-
-  if (find_max == True):
-    return int(salary_max * 0.8)
-
-  return int( salary_min * 1.2 )
+    return int(salary_min * 1.2)
 
 
-
-def get_sj_rating_curent_language(sj__rating,curent_language):
-  print(curent_language)
-
-  vacancies_processed = 0
-  summa_vacancies_processed = 0.0
-  curent_name_vacancie = "программист {0}".format(curent_language)
-
-
-  headers = {   "X-Api-App-Id" : SECRET_KEY_SUPERJOB
-   }
+def predict_rub_salary_sj(current_vacancie):
+    currency = current_vacancie["currency"]
+    if currency != "rub":
+        return None
+    salary_min = current_vacancie["payment_from"]
+    salary_max = current_vacancie["payment_to"]
+    return predict_rub_salary(salary_min,salary_max)
 
 
-  payload = { "town":"4"
-          ,"catalogues":"48"
-          ,"count":"100"
-          ,"not_archive":"1"
-          ,"keyword":curent_name_vacancie
-  }
-  host_api = "https://api.superjob.ru/2.0/vacancies/"
-  response = requests.get(host_api, headers=headers , params=payload)
-  response.raise_for_status()
-  if response.status_code != 200 :
-    print("Не Получили хороший результат от api.superjob.ru сод Ответа = {0}".format(response.status_code))
-    exit()
-
-  find_vacancies = response.json()
-
-  job_found = find_vacancies["total"]
-  job_vacancies = find_vacancies["objects"]
-  next_page = find_vacancies["more"]
-  curent_rating = {}
-  curent_rating["vacancies_found"] = job_found
-  curent_page = 0
-  while True == True :
-    if curent_page > 0 :
-      payload["page"] = curent_page
-      response = requests.get(host_api, headers=headers , params=payload)
-      response.raise_for_status()
-      if response.status_code != 200 :
-        print("Не Получили хороший результат от api.superjob.ru сод Ответа = {0}".format(response.status_code))
-        exit()
-      job_vacancies = find_vacancies["objects"]
-      next_page = find_vacancies["more"]
-
-    for curent_vacancie in job_vacancies:
-      try:
-        curent_salary = predict_rub_salary_sj(curent_vacancie)
-      except:
-       curent_salary = None
-      if curent_salary == None:
-        continue
-      vacancies_processed = vacancies_processed + 1
-      summa_vacancies_processed = summa_vacancies_processed + curent_salary
-
-    if next_page == False:
-      break
-    curent_page = curent_page + 1
-
-  curent_rating["vacancies_processed"] = vacancies_processed
-  average_salary = 0
-  if vacancies_processed > 0 :
-    average_salary = summa_vacancies_processed / vacancies_processed
-    average_salary = int(average_salary)
-  curent_rating["average_salary"] = average_salary
-  sj__rating[curent_language] = curent_rating
+def predict_rub_salary_hh(current_vacancie):
+    salary_vacancie = current_vacancie["salary"]
+    if salary_vacancie == None:
+        return None
+    currency = salary_vacancie["currency"]
+    if currency != "RUR":
+        return None
+    salary_min = salary_vacancie["from"]
+    salary_max = salary_vacancie["to"]
+    return predict_rub_salary(salary_min,salary_max)
 
 
-def get_hh_rating_curent_language(hh__rating,curent_language):
-  print(curent_language)
+def get_sj_rating_current_language(sj__rating, current_language):
 
-  vacancies_processed = 0
-  summa_vacancies_processed = 0.0
-  curent_name_vacancie = "программист {0}".format(curent_language)
+    vacancies_processed = 0
+    summa_vacancies_processed = 0.0
+    current_name_vacancie = "программист {0}".format(current_language)
 
-  host_api = 'https://api.hh.ru/vacancies'
-  payload = {"text": curent_name_vacancie
-          ,"area":"1"
-          ,"period":"30"
-          }
-  response = requests.get(host_api, params=payload)
-  response.raise_for_status()
-  if response.status_code != 200 :
-    print("Не Получили хороший результат от api.hh.ru сод Ответа = {0}".format(response.status_code))
-    exit()
+    headers = {"X-Api-App-Id": secret_key_superjob
+               }
 
-  find_vacancies = response.json()
-  job_vacancies  = find_vacancies["items"]
-  job_found  = find_vacancies["found"]
-  all_pages = find_vacancies["pages"]
-  per_page = find_vacancies["per_page"]
-  curent_rating = {}
-  curent_rating["vacancies_found"] = job_found
-  payload["per_page"] = per_page
-  for curent_page in range(all_pages):
-    print(curent_page)
-    if curent_page > 0 :
-      payload["page"] = curent_page
-      response = requests.get(host_api, params=payload)
-      response.raise_for_status()
-      if response.status_code != 200 :
-        print("Не Получили хороший результат от api.hh.ru сод Ответа = {0}".format(response.status_code))
-        exit()
-      find_vacancies = response.json()
-      job_vacancies  = find_vacancies["items"]
+    payload = {"town": "4"
+        , "catalogues": "48"
+        , "count": "100"
+        , "not_archive": "1"
+        , "keyword": current_name_vacancie
+               }
+    host_api = "https://api.superjob.ru/2.0/vacancies/"
+    response = requests.get(host_api, headers=headers, params=payload)
+    response.raise_for_status()
+    find_vacancies = response.json()
 
-    for curent_vacancie in job_vacancies:
-      try:
-        curent_salary = predict_rub_salary(curent_vacancie)
-      except:
-       curent_salary = None
-      if curent_salary == None:
-        continue
-      vacancies_processed = vacancies_processed + 1
-      summa_vacancies_processed = summa_vacancies_processed + curent_salary
+    job_found = find_vacancies["total"]
+    job_vacancies = find_vacancies["objects"]
+    next_page = find_vacancies["more"]
+    current_rating = {}
+    current_rating["vacancies_found"] = job_found
+    current_page = 0
+    while True:
+        if current_page > 0:
+            payload["page"] = current_page
+            response = requests.get(host_api, headers=headers, params=payload)
+            response.raise_for_status()
 
-  curent_rating["vacancies_processed"] = vacancies_processed
-  average_salary = 0
-  if vacancies_processed > 0 :
-    average_salary = summa_vacancies_processed / vacancies_processed
-    average_salary = int(average_salary)
-  curent_rating["average_salary"] = average_salary
-  hh__rating[curent_language] = curent_rating
+            job_vacancies = find_vacancies["objects"]
+            next_page = find_vacancies["more"]
+
+        for current_vacancie in job_vacancies:
+            try:
+                current_salary = predict_rub_salary_sj(current_vacancie)
+            except:
+                current_salary = None
+            if current_salary == None:
+                continue
+            vacancies_processed = vacancies_processed + 1
+            summa_vacancies_processed = summa_vacancies_processed + current_salary
+
+        if next_page == False:
+            break
+        current_page = current_page + 1
+
+    current_rating["vacancies_processed"] = vacancies_processed
+    average_salary = 0
+    if vacancies_processed > 0:
+        average_salary = summa_vacancies_processed / vacancies_processed
+        average_salary = int(average_salary)
+    current_rating["average_salary"] = average_salary
+    sj__rating[current_language] = current_rating
+
+
+def get_hh_rating_current_language(hh__rating, current_language):
+
+    vacancies_processed = 0
+    summa_vacancies_processed = 0.0
+    current_name_vacancie = "программист {0}".format(current_language)
+
+    host_api = 'https://api.hh.ru/vacancies'
+    payload = {"text": current_name_vacancie
+        , "area": "1"
+        , "period": "30"
+               }
+    response = requests.get(host_api, params=payload)
+    response.raise_for_status()
+
+    find_vacancies = response.json()
+    job_vacancies = find_vacancies["items"]
+    job_found = find_vacancies["found"]
+    all_pages = find_vacancies["pages"]
+    per_page = find_vacancies["per_page"]
+    current_rating = {}
+    current_rating["vacancies_found"] = job_found
+    payload["per_page"] = per_page
+    for current_page in range(all_pages):
+        if current_page > 0:
+            payload["page"] = current_page
+            response = requests.get(host_api, params=payload)
+            response.raise_for_status()
+
+            find_vacancies = response.json()
+            job_vacancies = find_vacancies["items"]
+
+        for current_vacancie in job_vacancies:
+            try:
+                current_salary = predict_rub_salary_hh(current_vacancie)
+            except:
+                current_salary = None
+            if current_salary == None:
+                continue
+            vacancies_processed = vacancies_processed + 1
+            summa_vacancies_processed = summa_vacancies_processed + current_salary
+
+    current_rating["vacancies_processed"] = vacancies_processed
+    average_salary = 0
+    if vacancies_processed > 0:
+        average_salary = summa_vacancies_processed / vacancies_processed
+        average_salary = int(average_salary)
+    current_rating["average_salary"] = average_salary
+    hh__rating[current_language] = current_rating
 
 
 def get_hh_rating(Programming_languages, hh__rating):
-  for curent_language in Programming_languages:
-    get_hh_rating_curent_language(hh__rating,curent_language)
+    for current_language in Programming_languages:
+        get_hh_rating_current_language(hh__rating, current_language)
+
 
 def get_sj_rating(Programming_languages, sj__rating):
-  for curent_language in Programming_languages:
-    get_sj_rating_curent_language(sj__rating,curent_language)    
+    for current_language in Programming_languages:
+        get_sj_rating_current_language(sj__rating, current_language)
 
-Programming_languages = [
-  "javaScript"
-  ,"Java"
-  ,"python"
-  ,"ruby"
-  ,"php"
-  ,"c++"
-  ,"c#"
-  ,"c"
-  ,"go"
-  ,"objective-c"
-  ,"scala"
-  ,"swift"
-]
+def main():
+    Programming_languages = [
+        "javaScript"
+        "Java" ,
+        "python" ,
+        "ruby" ,
+        "php" ,
+        "c++" ,
+        "c#" ,
+        "c" ,
+        "go" ,
+        "objective-c" ,
+        "scala" ,
+        "swift" ,
+    ]
 
+    hh__rating = {}
+    try:
+        get_hh_rating(Programming_languages, hh__rating)
+    except requests.exceptions.HTTPError as error:
+        exit("Не смогли получить данных с сервиса hh:\n{0}".format(error))
+    sj__rating = {}
+    try:
+        get_sj_rating(Programming_languages, sj__rating)
+    except requests.exceptions.HTTPError as error:
+        exit("Не смогли получить данных с сервиса super job:\n{0}".format(error))
+    out_table_terminal("Hh Moscow", hh__rating)
+    out_table_terminal("SuperJob Moscow", sj__rating)
 
-load_dotenv()
-SECRET_KEY_SUPERJOB = os.getenv("SECRET_KEY_SUPERJOB")
-hh__rating = {}
-get_hh_rating(Programming_languages, hh__rating)
-sj__rating = {}
-get_sj_rating(Programming_languages, sj__rating)
-out_table_terminal("Hh Moscow", hh__rating)
-out_table_terminal("SuperJob Moscow", sj__rating)
-
+if __name__ == '__main__':
+    load_dotenv()
+    secret_key_superjob = os.getenv("SECRET_KEY_SUPERJOB")
+    main()
