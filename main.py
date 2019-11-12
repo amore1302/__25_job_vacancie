@@ -4,7 +4,7 @@ import os
 from terminaltables import AsciiTable
 
 
-def out_table_terminal(title, cur__rating):
+def get_table_vscsncie(title, cur__rating):
     main_title = "{0}\nЯзык программирования".format(title)
     table_data = [[ main_title,
                     "Вакансий найдено",
@@ -16,8 +16,7 @@ def out_table_terminal(title, cur__rating):
                             current_vacancie["average_salary"]]
         table_data.append(current_row_table)
 
-    table = AsciiTable(table_data)
-    print(table.table)
+    return AsciiTable(table_data)
 
 def predict_rub_salary(salary_min,salary_max):
     find_min = False
@@ -31,12 +30,12 @@ def predict_rub_salary(salary_min,salary_max):
         if salary_max > 0:
             find_max = True
 
-    if (find_min == False) and (find_max == False):
+    if (not find_min ) and (not find_max):
         return None
-    if (find_min == True) and (find_max == True):
+    if find_min  and find_max :
         return int((salary_min + salary_max) / 2)
 
-    if (find_max == True):
+    if find_max :
         return int(salary_max * 0.8)
 
     return int(salary_min * 1.2)
@@ -66,7 +65,7 @@ def predict_rub_salary_hh(current_vacancie):
 def get_sj_rating_current_language(sj__rating, current_language):
 
     vacancies_processed = 0
-    summa_vacancies_processed = 0.0
+    total_summa_vacancies = 0.0
     current_name_vacancie = "программист {0}".format(current_language)
 
     headers = {"X-Api-App-Id": secret_key_superjob
@@ -106,16 +105,16 @@ def get_sj_rating_current_language(sj__rating, current_language):
             if current_salary == None:
                 continue
             vacancies_processed = vacancies_processed + 1
-            summa_vacancies_processed = summa_vacancies_processed + current_salary
+            total_summa_vacancies = total_summa_vacancies + current_salary
 
-        if next_page == False:
+        if not next_page :
             break
         current_page = current_page + 1
 
     current_rating["vacancies_processed"] = vacancies_processed
     average_salary = 0
     if vacancies_processed > 0:
-        average_salary = summa_vacancies_processed / vacancies_processed
+        average_salary = total_summa_vacancies / vacancies_processed
         average_salary = int(average_salary)
     current_rating["average_salary"] = average_salary
     sj__rating[current_language] = current_rating
@@ -124,7 +123,7 @@ def get_sj_rating_current_language(sj__rating, current_language):
 def get_hh_rating_current_language(hh__rating, current_language):
 
     vacancies_processed = 0
-    summa_vacancies_processed = 0.0
+    total_summa_vacancies = 0.0
     current_name_vacancie = "программист {0}".format(current_language)
 
     host_api = 'https://api.hh.ru/vacancies'
@@ -160,12 +159,12 @@ def get_hh_rating_current_language(hh__rating, current_language):
             if current_salary == None:
                 continue
             vacancies_processed = vacancies_processed + 1
-            summa_vacancies_processed = summa_vacancies_processed + current_salary
+            total_summa_vacancies = total_summa_vacancies + current_salary
 
     current_rating["vacancies_processed"] = vacancies_processed
     average_salary = 0
     if vacancies_processed > 0:
-        average_salary = summa_vacancies_processed / vacancies_processed
+        average_salary = total_summa_vacancies / vacancies_processed
         average_salary = int(average_salary)
     current_rating["average_salary"] = average_salary
     hh__rating[current_language] = current_rating
@@ -206,8 +205,10 @@ def main():
         get_sj_rating(Programming_languages, sj__rating)
     except requests.exceptions.HTTPError as error:
         exit("Не смогли получить данных с сервиса super job:\n{0}".format(error))
-    out_table_terminal("Hh Moscow", hh__rating)
-    out_table_terminal("SuperJob Moscow", sj__rating)
+    table_hh = get_table_vscsncie("Hh Moscow", hh__rating)
+    table_sj = get_table_vscsncie("SuperJob Moscow", sj__rating)
+    print(table_hh.table)
+    print(table_sj.table)
 
 if __name__ == '__main__':
     load_dotenv()
